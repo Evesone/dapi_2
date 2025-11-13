@@ -70,14 +70,41 @@ const createTables = async () => {
 
     console.log('✅ Orders table ready');
 
-    // Saved orders table
+    // Saved orders table (stores unplaced order details per item)
+    // Note: Drop the old table manually before starting the server
     await pool.query(`
       CREATE TABLE IF NOT EXISTS saved_orders (
         id SERIAL PRIMARY KEY,
+        save_reference VARCHAR(255) NOT NULL,
         user_id VARCHAR(255) NOT NULL,
-        order_data JSONB NOT NULL,
+        user_email VARCHAR(255),
+        dress_type VARCHAR(255) NOT NULL,
+        gender VARCHAR(20) NOT NULL,
+        size VARCHAR(50) NOT NULL,
+        quantity INTEGER NOT NULL,
+        address TEXT NOT NULL,
+        ai_image BYTEA NOT NULL,
+        image_format VARCHAR(10) DEFAULT 'png',
+        item_name VARCHAR(255),
+        item_price DECIMAL(10,2),
+        item_data JSONB,
+        shipping_address JSONB,
+        payment_info JSONB,
+        totals JSONB,
+        order_snapshot JSONB,
+        notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_saved_orders_reference
+      ON saved_orders(save_reference)
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_saved_orders_user
+      ON saved_orders(user_id, created_at DESC)
     `);
 
     console.log('✅ Saved orders table ready');
