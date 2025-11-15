@@ -84,16 +84,20 @@ class AIService {
         };
       }
     } catch (error) {
-      console.error('Error generating design image:', error);
-      console.error('Error details:', error.message);
+      console.error('=== ERROR in AIService.generateDesignImage ===');
+      console.error('Error message:', error.message);
+      console.error('Error name:', error.name);
       console.error('Error stack:', error.stack);
+      if (error.response) {
+        console.error('Error response status:', error.response.status);
+        console.error('Error response data:', JSON.stringify(error.response.data, null, 2));
+      }
+      if (error.cause) {
+        console.error('Error cause:', error.cause);
+      }
       
-      // Return fallback on error
-      const imageUrl = `https://picsum.photos/400/400?random=${Math.floor(Math.random() * 1000)}`;
-      
-      return {
-        imageUrl
-      };
+      // Re-throw the error so it can be properly handled by the route
+      throw error;
     }
   }
 
