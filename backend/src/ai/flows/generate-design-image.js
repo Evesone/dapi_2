@@ -50,7 +50,7 @@ const generateDesignImageFlow = ai.defineFlow(
     const fullPrompt = `Create a photorealistic product mockup of a high-quality, ${input.clothingColor} ${clothingTypeName}. ${sleeveDescription} ${designPrompt}${logoPrompt} The graphic or pattern should look naturally printed on the fabric, conforming to its folds and texture. The mockup should be displayed on a clean, minimalist background with soft studio lighting that creates realistic shadows and highlights on the garment. The model's face should be out of frame or obscured. The overall image must be modern, attractive, and persuasive.`;
     
     const {media} = await ai.generate({
-      model: 'googleai/gemini-2.0-flash-preview-image-generation',
+      model: 'googleai/gemini-2.0-flash-exp',
       prompt: fullPrompt,
       config: {
         responseModalities: ['TEXT', 'IMAGE'],
