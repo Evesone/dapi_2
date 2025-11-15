@@ -91,6 +91,18 @@ router.post('/debug-image-generation', async (req, res) => {
   }
 });
 
+// Handle preflight requests
+router.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  }
+  res.sendStatus(200);
+});
+
 // Generate design ideas
 router.post('/generate-design-ideas', async (req, res) => {
   try {
@@ -113,8 +125,19 @@ router.post('/generate-design-ideas', async (req, res) => {
     return res.json(result);
   } catch (error) {
     console.error('Error generating design ideas:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Ensure CORS headers are set even on errors
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    
     return res.status(500).json({
-      error: 'Failed to generate design ideas'
+      error: 'Failed to generate design ideas',
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -162,6 +185,14 @@ router.post('/generate-design-image', async (req, res) => {
   } catch (error) {
     console.error('Error generating design image:', error);
     console.error('Error stack:', error.stack);
+    
+    // Ensure CORS headers are set even on errors
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    
     return res.status(500).json({
       error: 'Failed to generate design image',
       message: error.message,
