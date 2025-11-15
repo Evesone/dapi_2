@@ -62,11 +62,16 @@ CRITICAL REQUIREMENTS:
 The mockup should be displayed on a clean, minimalist background with soft studio lighting that creates realistic shadows and highlights on the garment. The model's face should be out of frame or obscured. The overall image must be modern, attractive, and persuasive, showing the ${clothingTypeName} with the design clearly imprinted on it.`;
     
     try {
-      // Try Gemini 2.5 Flash Image (Nano Banana) - try different possible model identifiers
+      // Try different Gemini models that support image generation
+      // Note: Image generation support varies by model and may require specific API access
       const possibleModels = [
-        'googleai/gemini-2.5-flash-image-exp',  // Experimental version
-        'googleai/gemini-2.5-flash-image',      // Standard version
-        'googleai/gemini-2.5-flash-image-nano-banana', // Explicit Nano Banana identifier
+        'googleai/gemini-2.0-flash-exp',        // Gemini 2.0 Flash Experimental
+        'googleai/gemini-2.0-flash',            // Standard Gemini 2.0 Flash  
+        'googleai/gemini-1.5-pro',              // Gemini 1.5 Pro
+        'googleai/gemini-1.5-flash',            // Gemini 1.5 Flash
+        // Try without googleai prefix as fallback
+        'gemini-2.0-flash-exp',
+        'gemini-2.0-flash',
       ];
 
       let lastError = null;
@@ -82,13 +87,16 @@ The mockup should be displayed on a clean, minimalist background with soft studi
           });
 
           if (media && media.url) {
-            console.log(`Successfully generated image using model: ${modelName}`);
+            console.log(`✅ Successfully generated image using model: ${modelName}`);
             return {
               imageUrl: media.url,
             };
+          } else if (media) {
+            console.log(`Model ${modelName} returned media but no URL, checking structure...`);
+            console.log('Media object:', JSON.stringify(media, null, 2));
           }
         } catch (modelError) {
-          console.error(`=== Model ${modelName} FAILED ===`);
+          console.error(`❌ Model ${modelName} FAILED`);
           console.error('Error message:', modelError.message);
           console.error('Error name:', modelError.name);
           if (modelError.response) {
@@ -104,7 +112,7 @@ The mockup should be displayed on a clean, minimalist background with soft studi
       }
 
       // All Gemini models failed
-      throw new Error(`Gemini 2.5 Flash Image generation failed. Error: ${lastError?.message || 'Unknown error'}. Please check your GOOGLE_AI_API_KEY and ensure it's valid.`);
+      throw new Error(`Gemini image generation failed. Tried ${possibleModels.length} models. Last error: ${lastError?.message || 'Unknown error'}. Please check your GOOGLE_AI_API_KEY and ensure it's valid. Note: Image generation may require specific model access or API permissions.`);
     } catch (error) {
       console.error('=== FINAL ERROR in generateDesignImageFlow ===');
       console.error('Error message:', error.message);
