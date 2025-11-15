@@ -47,7 +47,17 @@ const generateDesignImageFlow = ai.defineFlow(
       ? ` Additionally, a small, subtle, and elegantly embroidered logo featuring the stylized text "DAPI" must be placed on the left chest of the garment (from the wearer's perspective). The logo should be tastefully integrated into the clothing, appearing as a high-quality, premium brand mark.`
       : '';
 
-    const fullPrompt = `Create a photorealistic product mockup of a high-quality, ${input.clothingColor} ${clothingTypeName}. ${sleeveDescription} ${designPrompt}${logoPrompt} The graphic or pattern should look naturally printed on the fabric, conforming to its folds and texture. The mockup should be displayed on a clean, minimalist background with soft studio lighting that creates realistic shadows and highlights on the garment. The model's face should be out of frame or obscured. The overall image must be modern, attractive, and persuasive.`;
+    const fullPrompt = `Create a photorealistic product mockup of a high-quality ${input.clothingColor} ${clothingTypeName} with a design directly imprinted and printed onto the fabric. ${sleeveDescription} ${designPrompt}${logoPrompt} 
+
+CRITICAL REQUIREMENTS:
+- The design must be DIRECTLY PRINTED/IMPRINTED onto the fabric of the ${clothingTypeName}, not floating above it or separate from it
+- The design should be an integral part of the garment, appearing as if it was screen-printed, heat-pressed, or digitally printed directly onto the fabric
+- The design must conform to the natural folds, wrinkles, and curves of the fabric, showing realistic distortion where the fabric bends
+- The design colors and graphics should appear as if they are part of the fabric itself, not a sticker or overlay
+- The design should show proper perspective and follow the 3D shape of the garment
+- The printing should look professional, with the design clearly visible and properly integrated into the clothing item
+
+The mockup should be displayed on a clean, minimalist background with soft studio lighting that creates realistic shadows and highlights on the garment. The model's face should be out of frame or obscured. The overall image must be modern, attractive, and persuasive, showing the ${clothingTypeName} with the design clearly imprinted on it.`;
     
     const {media} = await ai.generate({
       model: 'googleai/gemini-2.5-flash-image',
