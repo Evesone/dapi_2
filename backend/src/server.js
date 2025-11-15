@@ -140,10 +140,6 @@ async function startServer() {
     console.log(`📦 Node version: ${process.version}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🔑 GOOGLE_AI_API_KEY: ${process.env.GOOGLE_AI_API_KEY ? 'SET (' + process.env.GOOGLE_AI_API_KEY.length + ' chars)' : 'NOT SET'}`);
-<<<<<<< HEAD
-=======
-    console.log(`🔑 OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? 'SET (' + process.env.OPENAI_API_KEY.length + ' chars)' : 'NOT SET'}`);
->>>>>>> 278d4a0d950422d50193d65d3e8906f3e8100487
     
     // Initialize database (don't block server startup if it fails)
     try {
