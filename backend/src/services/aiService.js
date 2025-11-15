@@ -58,30 +58,48 @@ class AIService {
 
   static async generateDesignImage({ prompt, category, clothingType, sleeveLength, clothingColor, printStyle, style, printLocation, includeLogo }) {
     try {
-      console.log('Generating design image with params:', { prompt, clothingType, clothingColor, printStyle, sleeveLength, includeLogo });
+      console.log('=== AIService.generateDesignImage START ===');
+      console.log('Params:', { prompt, clothingType, clothingColor, printStyle, sleeveLength, includeLogo });
       console.log('hasGoogleAI:', hasGoogleAI);
+      console.log('GOOGLE_AI_API_KEY exists:', !!process.env.GOOGLE_AI_API_KEY);
+      console.log('GOOGLE_AI_API_KEY length:', process.env.GOOGLE_AI_API_KEY ? process.env.GOOGLE_AI_API_KEY.length : 0);
+      console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
       
-      if (hasGoogleAI) {
+      // Always try to use AI if either key is available
+      const hasOpenAI = process.env.OPENAI_API_KEY && 
+                        process.env.OPENAI_API_KEY !== 'your_openai_api_key_here' &&
+                        process.env.OPENAI_API_KEY.trim() !== '';
+      
+      if (hasGoogleAI || hasOpenAI) {
         // Use the real AI flow for generating design images
-        console.log('Using real AI service for design image');
-        const result = await generateDesignImage({ 
-          prompt, 
-          clothingType, 
-          clothingColor, 
-          printStyle, 
-          sleeveLength,
-          includeLogo
-        });
-        console.log('AI image generation result:', result);
-        return result;
-      } else {
-        // Fallback to placeholder when AI is not configured
-        console.log('Using fallback image (AI not configured)');
-        const imageUrl = `https://picsum.photos/400/400?random=${Math.floor(Math.random() * 1000)}`;
+        console.log('Attempting AI image generation...');
+        console.log('Will try Gemini:', hasGoogleAI);
+        console.log('Will try DALL-E as fallback:', hasOpenAI);
         
-        return {
-          imageUrl
-        };
+        try {
+          const result = await generateDesignImage({ 
+            prompt, 
+            clothingType, 
+            clothingColor, 
+            printStyle, 
+            sleeveLength,
+            includeLogo
+          });
+          console.log('✅ AI image generation SUCCESS');
+          console.log('Result imageUrl length:', result?.imageUrl?.length || 0);
+          console.log('Result imageUrl preview:', result?.imageUrl?.substring(0, 100) || 'N/A');
+          return result;
+        } catch (aiError) {
+          console.error('❌ AI image generation FAILED');
+          console.error('Error:', aiError.message);
+          // Re-throw so the route can handle it properly
+          throw aiError;
+        }
+      } else {
+        // No API keys configured - return error instead of placeholder
+        console.error('❌ No AI API keys configured!');
+        console.error('Please set GOOGLE_AI_API_KEY or OPENAI_API_KEY in environment variables');
+        throw new Error('AI image generation is not configured. Please set GOOGLE_AI_API_KEY or OPENAI_API_KEY in your environment variables.');
       }
     } catch (error) {
       console.error('=== ERROR in AIService.generateDesignImage ===');
