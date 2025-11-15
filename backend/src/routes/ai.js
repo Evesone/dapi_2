@@ -7,18 +7,24 @@ router.get('/test', (req, res) => {
   const hasGoogleAI = process.env.GOOGLE_AI_API_KEY && 
                       process.env.GOOGLE_AI_API_KEY !== 'your_google_ai_api_key_here' &&
                       process.env.GOOGLE_AI_API_KEY.trim() !== '';
+<<<<<<< HEAD
+=======
   const hasOpenAI = process.env.OPENAI_API_KEY && 
                     process.env.OPENAI_API_KEY !== 'your_openai_api_key_here' &&
                     process.env.OPENAI_API_KEY.trim() !== '';
   
+>>>>>>> 278d4a0d950422d50193d65d3e8906f3e8100487
   const googleKeyPreview = process.env.GOOGLE_AI_API_KEY 
     ? `${process.env.GOOGLE_AI_API_KEY.substring(0, 10)}...${process.env.GOOGLE_AI_API_KEY.substring(process.env.GOOGLE_AI_API_KEY.length - 5)}`
     : 'NOT SET';
   
+<<<<<<< HEAD
+=======
   const openAIKeyPreview = process.env.OPENAI_API_KEY 
     ? `${process.env.OPENAI_API_KEY.substring(0, 10)}...${process.env.OPENAI_API_KEY.substring(process.env.OPENAI_API_KEY.length - 5)}`
     : 'NOT SET';
   
+>>>>>>> 278d4a0d950422d50193d65d3e8906f3e8100487
   res.json({ 
     message: 'AI routes are working!',
     timestamp: new Date().toISOString(),
@@ -26,12 +32,18 @@ router.get('/test', (req, res) => {
       hasGoogleAI,
       googleAIKeyLength: process.env.GOOGLE_AI_API_KEY ? process.env.GOOGLE_AI_API_KEY.length : 0,
       googleAIKeyPreview: googleKeyPreview,
+<<<<<<< HEAD
+    },
+    nodeEnv: process.env.NODE_ENV,
+    status: hasGoogleAI ? '✅ Ready for image generation' : '❌ No API keys configured'
+=======
       hasOpenAI,
       openAIKeyLength: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.length : 0,
       openAIKeyPreview: openAIKeyPreview,
     },
     nodeEnv: process.env.NODE_ENV,
     status: (hasGoogleAI || hasOpenAI) ? '✅ Ready for image generation' : '❌ No API keys configured'
+>>>>>>> 278d4a0d950422d50193d65d3e8906f3e8100487
   });
 });
 
@@ -43,17 +55,23 @@ router.post('/debug-image-generation', async (req, res) => {
     const hasGoogleAI = process.env.GOOGLE_AI_API_KEY && 
                         process.env.GOOGLE_AI_API_KEY !== 'your_google_ai_api_key_here' &&
                         process.env.GOOGLE_AI_API_KEY.trim() !== '';
+<<<<<<< HEAD
+=======
     const hasOpenAI = process.env.OPENAI_API_KEY && 
                       process.env.OPENAI_API_KEY !== 'your_openai_api_key_here' &&
                       process.env.OPENAI_API_KEY.trim() !== '';
     
+>>>>>>> 278d4a0d950422d50193d65d3e8906f3e8100487
     const debugInfo = {
       timestamp: new Date().toISOString(),
       apiKeys: {
         hasGoogleAI,
         googleAIKeyPrefix: process.env.GOOGLE_AI_API_KEY ? process.env.GOOGLE_AI_API_KEY.substring(0, 10) + '...' : 'NOT SET',
+<<<<<<< HEAD
+=======
         hasOpenAI,
         openAIKeyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 10) + '...' : 'NOT SET',
+>>>>>>> 278d4a0d950422d50193d65d3e8906f3e8100487
       },
       testParams: {
         prompt: req.body.prompt || 'a simple geometric design',
@@ -66,10 +84,17 @@ router.post('/debug-image-generation', async (req, res) => {
 
     console.log('Debug Info:', JSON.stringify(debugInfo, null, 2));
 
+<<<<<<< HEAD
+    if (!hasGoogleAI) {
+      return res.status(400).json({
+        ...debugInfo,
+        error: 'No API keys configured. Please set GOOGLE_AI_API_KEY in your .env file'
+=======
     if (!hasGoogleAI && !hasOpenAI) {
       return res.status(400).json({
         ...debugInfo,
         error: 'No API keys configured. Please set GOOGLE_AI_API_KEY or OPENAI_API_KEY in your .env file'
+>>>>>>> 278d4a0d950422d50193d65d3e8906f3e8100487
       });
     }
 
