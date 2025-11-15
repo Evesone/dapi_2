@@ -1,5 +1,6 @@
 const { ai } = require('../genkit');
 const { z } = require('genkit');
+const { ImageGenerationService } = require('../../services/imageGenerationService');
 
 const GenerateDesignImageInputSchema = z.object({
   prompt: z.string().describe('A text prompt describing the desired design.'),
@@ -29,6 +30,8 @@ const generateDesignImageFlow = ai.defineFlow(
     outputSchema: GenerateDesignImageOutputSchema,
   },
   async (input) => {
+    // Use Gemini 2.5 Flash Image (Nano Banana) as primary model
+    console.log('Using Gemini 2.5 Flash Image (Nano Banana) for image generation');
     let designPrompt;
     if (input.printStyle === 'centered') {
       designPrompt = `The clothing must feature a visually striking, professionally-made, centered graphic based on this description: "${input.prompt}".`;
@@ -59,21 +62,66 @@ CRITICAL REQUIREMENTS:
 
 The mockup should be displayed on a clean, minimalist background with soft studio lighting that creates realistic shadows and highlights on the garment. The model's face should be out of frame or obscured. The overall image must be modern, attractive, and persuasive, showing the ${clothingTypeName} with the design clearly imprinted on it.`;
     
-    const {media} = await ai.generate({
-      model: 'googleai/gemini-2.5-flash-image',
-      prompt: fullPrompt,
-      config: {
-        responseModalities: ['TEXT', 'IMAGE'],
-      },
-    });
+    try {
+      // Try Gemini 2.5 Flash Image (Nano Banana) - try different possible model identifiers
+      const possibleModels = [
+        'googleai/gemini-2.5-flash-image-exp',  // Experimental version
+        'googleai/gemini-2.5-flash-image',      // Standard version
+        'googleai/gemini-2.5-flash-image-nano-banana', // Explicit Nano Banana identifier
+      ];
 
-    if (!media) {
-      throw new Error('Image generation failed.');
+      let lastError = null;
+      for (const modelName of possibleModels) {
+        try {
+          console.log(`Trying Gemini model: ${modelName}`);
+          const {media} = await ai.generate({
+            model: modelName,
+            prompt: fullPrompt,
+            config: {
+              responseModalities: ['TEXT', 'IMAGE'],
+            },
+          });
+
+          if (media && media.url) {
+            console.log(`Successfully generated image using model: ${modelName}`);
+            return {
+              imageUrl: media.url,
+            };
+          }
+        } catch (modelError) {
+          console.log(`Model ${modelName} failed:`, modelError.message);
+          lastError = modelError;
+          continue; // Try next model
+        }
+      }
+
+      // If all Gemini models failed, try DALL-E as fallback
+      const hasOpenAI = process.env.OPENAI_API_KEY && 
+                       process.env.OPENAI_API_KEY !== 'your_openai_api_key_here' &&
+                       process.env.OPENAI_API_KEY.trim() !== '';
+
+      if (hasOpenAI) {
+        console.log('All Gemini models failed, trying DALL-E as fallback');
+        try {
+          return await ImageGenerationService.generateDesignImage({
+            prompt: input.prompt,
+            clothingType: input.clothingType,
+            clothingColor: input.clothingColor,
+            printStyle: input.printStyle,
+            sleeveLength: input.sleeveLength,
+            includeLogo: input.includeLogo,
+          });
+        } catch (dalleError) {
+          console.error('DALL-E fallback also failed:', dalleError.message);
+          throw new Error(`Image generation failed with all models. Last Gemini error: ${lastError?.message || 'Unknown error'}. DALL-E error: ${dalleError.message}`);
+        }
+      }
+
+      throw new Error(`Gemini 2.5 Flash Image generation failed. Error: ${lastError?.message || 'Unknown error'}. Please check your GOOGLE_AI_API_KEY.`);
+    } catch (error) {
+      console.error('Image generation error:', error);
+      throw error;
     }
-    
-    return {
-      imageUrl: media.url,
-    };
   }
 );
 
