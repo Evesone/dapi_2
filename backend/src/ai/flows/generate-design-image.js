@@ -89,7 +89,16 @@ The mockup should be displayed on a clean, minimalist background with soft studi
             };
           }
         } catch (modelError) {
-          console.log(`Model ${modelName} failed:`, modelError.message);
+          console.error(`=== Model ${modelName} FAILED ===`);
+          console.error('Error message:', modelError.message);
+          console.error('Error name:', modelError.name);
+          if (modelError.response) {
+            console.error('Response status:', modelError.response.status);
+            console.error('Response data:', JSON.stringify(modelError.response.data, null, 2));
+          }
+          if (modelError.cause) {
+            console.error('Error cause:', modelError.cause);
+          }
           lastError = modelError;
           continue; // Try next model
         }
@@ -119,7 +128,14 @@ The mockup should be displayed on a clean, minimalist background with soft studi
 
       throw new Error(`Gemini 2.5 Flash Image generation failed. Error: ${lastError?.message || 'Unknown error'}. Please check your GOOGLE_AI_API_KEY.`);
     } catch (error) {
-      console.error('Image generation error:', error);
+      console.error('=== FINAL ERROR in generateDesignImageFlow ===');
+      console.error('Error message:', error.message);
+      console.error('Error name:', error.name);
+      console.error('Error stack:', error.stack);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+      }
       throw error;
     }
   }
