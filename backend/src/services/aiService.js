@@ -63,7 +63,10 @@ class AIService {
       console.log('hasGoogleAI:', hasGoogleAI);
       console.log('GOOGLE_AI_API_KEY exists:', !!process.env.GOOGLE_AI_API_KEY);
       console.log('GOOGLE_AI_API_KEY length:', process.env.GOOGLE_AI_API_KEY ? process.env.GOOGLE_AI_API_KEY.length : 0);
+<<<<<<< HEAD
+=======
       console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
+>>>>>>> 278d4a0d950422d50193d65d3e8906f3e8100487
       
       // Always try to use AI if either key is available
       const hasOpenAI = process.env.OPENAI_API_KEY && 
@@ -72,9 +75,13 @@ class AIService {
       
       if (hasGoogleAI || hasOpenAI) {
         // Use the real AI flow for generating design images
+<<<<<<< HEAD
+        console.log('Attempting AI image generation with Gemini...');
+=======
         console.log('Attempting AI image generation...');
         console.log('Will try Gemini:', hasGoogleAI);
         console.log('Will try DALL-E as fallback:', hasOpenAI);
+>>>>>>> 278d4a0d950422d50193d65d3e8906f3e8100487
         
         try {
           const result = await generateDesignImage({ 
@@ -98,8 +105,13 @@ class AIService {
       } else {
         // No API keys configured - return error instead of placeholder
         console.error('❌ No AI API keys configured!');
+<<<<<<< HEAD
+        console.error('Please set GOOGLE_AI_API_KEY in environment variables');
+        throw new Error('AI image generation is not configured. Please set GOOGLE_AI_API_KEY in your environment variables.');
+=======
         console.error('Please set GOOGLE_AI_API_KEY or OPENAI_API_KEY in environment variables');
         throw new Error('AI image generation is not configured. Please set GOOGLE_AI_API_KEY or OPENAI_API_KEY in your environment variables.');
+>>>>>>> 278d4a0d950422d50193d65d3e8906f3e8100487
       }
     } catch (error) {
       console.error('=== ERROR in AIService.generateDesignImage ===');
