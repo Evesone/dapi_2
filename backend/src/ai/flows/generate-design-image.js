@@ -63,6 +63,7 @@ CRITICAL REQUIREMENTS:
       // ✅ Call Gemini 2.5 Flash Image
       const model = genAI.getGenerativeModel({
         model: "gemini-2.5-flash-image",
+        'imagen-4.0-generate-001'
       });
 
       const result = await model.generateContent({
@@ -95,3 +96,4 @@ CRITICAL REQUIREMENTS:
 );
 
 module.exports = { generateDesignImage };
+
