@@ -1,6 +1,5 @@
 const { ai } = require('../genkit');
 const { z } = require('genkit');
-const fetch = require('node-fetch'); // Add this
 
 const GenerateDesignImageInputSchema = z.object({
   prompt: z.string(),
@@ -12,14 +11,14 @@ const GenerateDesignImageInputSchema = z.object({
 });
 
 const GenerateDesignImageOutputSchema = z.object({
-  imageUrl: z.string().describe('Base64 Data URI of the generated image'),
+  imageUrl: z.string(),
 });
 
 async function generateDesignImage(input) {
   return generateDesignImageFlow(input);
 }
 
-const CF_WORKER_URL = "https://image-generation.masterjas84.workers.dev/"; // <== your worker
+const CF_WORKER_URL = "https://image-generation.masterjas84.workers.dev/";
 
 const generateDesignImageFlow = ai.defineFlow(
   {
@@ -28,6 +27,10 @@ const generateDesignImageFlow = ai.defineFlow(
     outputSchema: GenerateDesignImageOutputSchema,
   },
   async (input) => {
+
+    // 🔥 Load fetch dynamically (fixes "fetch is not a function")
+    const { default: fetch } = await import('node-fetch');
+
     let designPrompt;
 
     if (input.printStyle === 'centered') {
@@ -53,10 +56,10 @@ const generateDesignImageFlow = ai.defineFlow(
       Use modern studio lighting, clean background, no visible face.
     `;
 
-    // ---------- CLOUD FLARE WORKER CALL ----------
-    const url = `${CF_WORKER_URL}?prompt=${encodeURIComponent(fullPrompt)}`;
-
-    const response = await fetch(url);
+    // 🔥 Call Cloudflare Worker
+    const response = await fetch(
+      `${CF_WORKER_URL}?prompt=${encodeURIComponent(fullPrompt)}`
+    );
 
     if (!response.ok) {
       throw new Error(`Cloudflare Worker Error: ${response.status}`);
