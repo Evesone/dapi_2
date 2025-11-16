@@ -65,7 +65,8 @@ The mockup should be displayed on a clean, minimalist background with soft studi
       // Try different Gemini models that support image generation
       // Note: Image generation support varies by model and may require specific API access
       const possibleModels = [
-  'googleai/gemini-2.5-flash-image',
+        'imagen-4.0-generate-001',
+  'googleai/imagen-4.0-generate-001',
         'gemini-2.5-flash-image'
 ];
 
@@ -123,6 +124,7 @@ The mockup should be displayed on a clean, minimalist background with soft studi
 );
 
 module.exports = { generateDesignImage };
+
 
 
 
