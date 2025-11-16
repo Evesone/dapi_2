@@ -64,51 +64,34 @@ The mockup should be displayed on a clean, minimalist background with soft studi
     try {
       // Try different Gemini models that support image generation
       // Note: Image generation support varies by model and may require specific API access
-      const possibleModels = [
-        'imagen-4.0-generate-001',
-  'googleai/imagen-4.0-generate-001',
-        'gemini-2.5-flash-image'
-];
+      console.log("Using Gemini 2.5 Flash Image");
 
-      let lastError = null;
-      for (const modelName of possibleModels) {
-        try {
-          console.log(`Trying Gemini model: ${modelName}`);
-          const {media} = await ai.generate({
-            model: modelName,
-            prompt: fullPrompt,
-            config: {
-              responseModalities: ['TEXT', 'IMAGE'],
-            },
-          });
+const model = genAI.getGenerativeModel({
+  model: "gemini-2.5-flash-image",
+});
 
-          if (media && media.url) {
-            console.log(`✅ Successfully generated image using model: ${modelName}`);
-            return {
-              imageUrl: media.url,
-            };
-          } else if (media) {
-            console.log(`Model ${modelName} returned media but no URL, checking structure...`);
-            console.log('Media object:', JSON.stringify(media, null, 2));
-          }
-        } catch (modelError) {
-          console.error(`❌ Model ${modelName} FAILED`);
-          console.error('Error message:', modelError.message);
-          console.error('Error name:', modelError.name);
-          if (modelError.response) {
-            console.error('Response status:', modelError.response.status);
-            console.error('Response data:', JSON.stringify(modelError.response.data, null, 2));
-          }
-          if (modelError.cause) {
-            console.error('Error cause:', modelError.cause);
-          }
-          lastError = modelError;
-          continue; // Try next model
-        }
-      }
+const result = await model.generateContent({
+  contents: [
+    {
+      role: "user",
+      parts: [{ text: fullPrompt }],
+    },
+  ],
+});
 
-      // All Gemini models failed
-      throw new Error(`Gemini image generation failed. Tried ${possibleModels.length} models. Last error: ${lastError?.message || 'Unknown error'}. Please check your GOOGLE_AI_API_KEY and ensure it's valid. Note: Image generation may require specific model access or API permissions.`);
+const imagePart = result.response.candidates?.[0]?.content?.parts?.find(
+  (p) => p.inlineData && p.inlineData.mimeType.startsWith("image/")
+);
+
+if (!imagePart) {
+  throw new Error("Gemini 2.5 Flash returned no image.");
+}
+
+const dataUri = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+
+return {
+  imageUrl: dataUri,
+};
     } catch (error) {
       console.error('=== FINAL ERROR in generateDesignImageFlow ===');
       console.error('Error message:', error.message);
@@ -124,6 +107,7 @@ The mockup should be displayed on a clean, minimalist background with soft studi
 );
 
 module.exports = { generateDesignImage };
+
 
 
 
