@@ -20,7 +20,8 @@ async function generateDesignImage(input) {
   return generateDesignImageFlow(input);
 }
 
-const CF_WORKER_URL = "https://image-generation.masterjas84.workers.dev/";
+const CF_WORKER_URL =
+  process.env.CF_WORKER_URL || "https://image-generation.masterjas84.workers.dev/";
 
 const generateDesignImageFlow = ai.defineFlow(
   {
