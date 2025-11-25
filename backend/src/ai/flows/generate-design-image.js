@@ -1,5 +1,7 @@
 const { ai } = require('../genkit');
 const { z } = require('genkit');
+const sharp = require('sharp');
+const { savePngAndGetUrl } = require('../../services/imageStorageService');
 
 const GenerateDesignImageInputSchema = z.object({
   prompt: z.string(),
@@ -38,12 +40,12 @@ const generateDesignImageFlow = ai.defineFlow(
     } else {
       designPrompt = `A seamless all-over pattern: "${input.prompt}".`;
     }
-
+    
     const clothingTypeName = input.clothingType.replace('-', ' ');
     const sleeveDescription = `It has ${input.sleeveLength === 'full' ? 'long' : 'short'} sleeves.`;
-
+    
     const shouldIncludeLogo = input.includeLogo !== false;
-    const logoPrompt = shouldIncludeLogo
+    const logoPrompt = shouldIncludeLogo 
       ? ` Include a small DAPI embroidered logo on the left chest.`
       : '';
 
@@ -72,11 +74,28 @@ const generateDesignImageFlow = ai.defineFlow(
     }
 
     const arrayBuffer = await response.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
-    const dataUri = `data:image/png;base64,${base64}`;
 
-    return {
-      imageUrl: dataUri,
+    // Step 2: Convert to Buffer
+    const inputBuffer = Buffer.from(arrayBuffer);
+
+    // Step 3: Inject DPI metadata using Sharp and ensure optimized PNG
+    const pngBuffer = await sharp(inputBuffer)
+      .png({
+        compressionLevel: 9,
+        adaptiveFiltering: true,
+        palette: false,
+      })
+      .withMetadata({
+        density: 300, // 300 DPI for print quality
+      })
+      .toBuffer();
+
+    // Step 4: Upload PNG to storage provider (local disk + static URL)
+    const imageUrl = await savePngAndGetUrl(pngBuffer);
+
+    // Step 5: Return URL (frontend will include this in order data, which is stored in DB)
+      return {
+      imageUrl,
     };
   }
 );
