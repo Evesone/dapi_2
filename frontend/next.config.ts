@@ -1,7 +1,9 @@
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
+
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const apiUrlObject = new URL(apiUrl);
 
 const nextConfig: NextConfig = {
-  /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -27,6 +29,12 @@ const nextConfig: NextConfig = {
         hostname: 'picsum.photos',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: apiUrlObject.protocol.replace(':', ''),
+        hostname: apiUrlObject.hostname,
+        port: apiUrlObject.port,
+        pathname: '/generated-images/**',
       },
     ],
     dangerouslyAllowSVG: true,
