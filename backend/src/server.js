@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
 
 // Load environment variables
 dotenv.config();
@@ -78,6 +79,12 @@ console.log('Routes registered successfully');
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'DAPI Backend is running' });
 });
+
+// Serve generated images as static files
+app.use(
+  '/generated-images',
+  express.static(path.join(process.cwd(), 'generated-images'))
+);
 
 // Debug endpoint to list all routes
 app.get('/debug/routes', (req, res) => {
