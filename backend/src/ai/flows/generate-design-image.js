@@ -29,8 +29,8 @@ const generateDesignImageFlow = ai.defineFlow(
     outputSchema: GenerateDesignImageOutputSchema,
   },
   async (input) => {
-    // Use Gemini 2.5 Flash Image (Nano Banana) as primary model
-    console.log('Using Gemini 2.5 Flash Image (Nano Banana) for image generation');
+    // Use Cloudflare Workers AI for image generation
+    console.log('Using Cloudflare Workers AI for image generation');
     let designPrompt;
     if (input.printStyle === 'centered') {
       designPrompt = `The clothing must feature a visually striking, professionally-made, centered graphic based on this description: "${input.prompt}".`;
@@ -83,36 +83,49 @@ ABSOLUTE REQUIREMENTS - FOLLOW EXACTLY:
 IMPORTANT: Only create the design "${input.prompt}" printed on the ${clothingTypeName}. Do not add any other design elements, graphics, or decorative features. The background must be completely plain.`;
     
     try {
-      // Try different Gemini models that support image generation
-      // Note: Image generation support varies by model and may require specific API access
-      console.log("Using Gemini 2.5 Flash Image");
+      // Use Cloudflare Workers AI for image generation
+      const cloudflareAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+      const cloudflareApiToken = process.env.CLOUDFLARE_API_TOKEN;
+      const cloudflareModel = process.env.CLOUDFLARE_IMAGE_MODEL || '@cf/black-forest-labs/flux-schnell';
+      
+      if (!cloudflareAccountId || !cloudflareApiToken) {
+        throw new Error('Cloudflare API credentials not configured. Please set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN environment variables.');
+      }
 
-const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash-image",
-});
+      const cloudflareApiUrl = `https://api.cloudflare.com/client/v4/accounts/${cloudflareAccountId}/ai/run/${cloudflareModel}`;
+      
+      console.log('Calling Cloudflare API:', cloudflareApiUrl);
+      console.log('Using model:', cloudflareModel);
+      
+      const response = await fetch(cloudflareApiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${cloudflareApiToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: fullPrompt,
+        }),
+      });
 
-const result = await model.generateContent({
-  contents: [
-    {
-      role: "user",
-      parts: [{ text: fullPrompt }],
-    },
-  ],
-});
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Cloudflare API error:', errorText);
+        throw new Error(`Cloudflare API error: ${response.status} ${errorText}`);
+      }
 
-const imagePart = result.response.candidates?.[0]?.content?.parts?.find(
-  (p) => p.inlineData && p.inlineData.mimeType.startsWith("image/")
-);
+      // Cloudflare Workers AI returns image as ArrayBuffer or Blob
+      const imageBlob = await response.blob();
+      const arrayBuffer = await imageBlob.arrayBuffer();
+      const base64Image = Buffer.from(arrayBuffer).toString('base64');
+      const mimeType = imageBlob.type || 'image/png';
+      
+      const dataUri = `data:${mimeType};base64,${base64Image}`;
 
-if (!imagePart) {
-  throw new Error("Gemini 2.5 Flash returned no image.");
-}
-
-const dataUri = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-
-return {
-  imageUrl: dataUri,
-};
+      console.log('Image generated successfully via Cloudflare');
+      return {
+        imageUrl: dataUri,
+      };
     } catch (error) {
       console.error('=== FINAL ERROR in generateDesignImageFlow ===');
       console.error('Error message:', error.message);
