@@ -49,38 +49,38 @@ const generateDesignImageFlow = ai.defineFlow(
       ? ` Additionally, a small, subtle, and elegantly embroidered logo featuring the stylized text "DAPI" must be placed on the left chest of the garment (from the wearer's perspective). The logo should be tastefully integrated into the clothing, appearing as a high-quality, premium brand mark.`
       : '';
 
-    const fullPrompt = `Photorealistic product photography of a ${input.clothingColor} ${clothingTypeName} with ${sleeveDescription}. ${designPrompt}${logoPrompt}
+    const fullPrompt = `Create a photorealistic product mockup of a high-quality ${input.clothingColor} ${clothingTypeName} with ${sleeveDescription}. ${designPrompt}${logoPrompt}
 
-MANDATORY REQUIREMENTS - READ CAREFULLY:
+ABSOLUTE REQUIREMENTS - FOLLOW EXACTLY:
 
-1. DESIGN PLACEMENT - CRITICAL:
-   - The design described in "${input.prompt}" MUST be printed directly ONTO the front surface of the ${clothingTypeName} fabric
-   - The design graphics MUST appear as if they are part of the fabric itself, like screen printing or heat transfer
-   - The design MUST follow the natural curves and folds of the garment when the fabric bends or wrinkles
-   - The design MUST be visible ON THE GARMENT SURFACE, not behind it, not around it, not in the background
+1. DESIGN PLACEMENT - ONLY ON FABRIC:
+   - ONLY the design described in "${input.prompt}" must appear on the ${clothingTypeName}
+   - The design MUST be printed directly ONTO the front surface of the ${clothingTypeName} fabric
+   - The design must appear as if it was professionally screen-printed or digitally printed directly onto the fabric surface
+   - The design must follow the natural curves and folds of the garment when the fabric bends
+   - NO other design elements, graphics, patterns, or decorative elements should appear anywhere else
 
-2. STRICT PROHIBITIONS - DO NOT CREATE:
+2. STRICT PROHIBITIONS - DO NOT INCLUDE:
    - NO design elements behind the ${clothingTypeName}
-   - NO design elements floating around or surrounding the garment
-   - NO background graphics, patterns, or decorative elements
-   - NO design elements that appear separate from the fabric
-   - NO creatures, animals, or graphics positioned behind or around the garment
-   - The background must be completely plain and empty
+   - NO design elements around, beside, or surrounding the garment
+   - NO background graphics, patterns, textures, or decorative elements
+   - NO additional creatures, animals, objects, or graphics that are not part of "${input.prompt}"
+   - NO design elements floating in the air or separate from the fabric
+   - The background must be completely plain, solid, and empty
 
-3. VISUAL REQUIREMENTS:
-   - The design should look like professional screen printing or digital printing directly on fabric
-   - When the fabric folds or curves, the design should show realistic perspective distortion
-   - The design colors should appear integrated into the fabric, not as an overlay or sticker
-   - The design should be clearly visible and readable on the front of the garment
+3. VISUAL ACCURACY:
+   - The design should look like professional printing directly on fabric
+   - When fabric folds or curves, show realistic perspective distortion of the design
+   - The design colors must appear integrated into the fabric, not as an overlay
+   - Only show the exact design requested: "${input.prompt}" - nothing more, nothing less
 
-4. BACKGROUND AND SETTING:
-   - Clean, solid white or light gray background
-   - No patterns, textures, or graphics in the background
-   - Soft, professional studio lighting
-   - The garment displayed on a mannequin or hanger
+4. SETTING:
+   - Clean, solid white or light gray background - completely plain with no patterns or graphics
+   - Soft professional studio lighting
+   - Garment displayed on a mannequin or hanger
    - No model's face visible (out of frame or obscured)
 
-Remember: The design from "${input.prompt}" must be printed ON the ${clothingTypeName}, not behind it or around it. The background must be completely plain with no design elements whatsoever.`;
+IMPORTANT: Only create the design "${input.prompt}" printed on the ${clothingTypeName}. Do not add any other design elements, graphics, or decorative features. The background must be completely plain.`;
     
     try {
       // Try different Gemini models that support image generation
