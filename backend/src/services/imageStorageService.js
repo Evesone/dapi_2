@@ -3,7 +3,7 @@ const path = require('path');
 const { randomUUID } = require('crypto');
 
 // Directory where generated PNGs will be stored
-const GENERATED_DIR = path.join(__dirname, '..', '..', 'generated-images');
+const GENERATED_DIR = path.join(process.cwd(), 'generated-images');
 
 function ensureGeneratedDir() {
   if (!fs.existsSync(GENERATED_DIR)) {
