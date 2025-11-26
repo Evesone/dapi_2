@@ -80,6 +80,17 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'DAPI Backend is running' });
 });
 
+
+const fs = require('fs');
+
+// Ensure generated-images folder exists
+const imagesDir = path.join(process.cwd(), 'generated-images');
+if (!fs.existsSync(imagesDir)) {
+  fs.mkdirSync(imagesDir, { recursive: true });
+  console.log('📁 created folder: /generated-images');
+} else {
+  console.log('📁 folder exists: /generated-images');
+}
 // Serve generated images as static files
 app.use(
   '/generated-images',
@@ -196,3 +207,4 @@ async function startServer() {
 }
 
 startServer();
+
