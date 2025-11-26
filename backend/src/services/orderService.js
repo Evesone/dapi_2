@@ -1,10 +1,44 @@
 const pool = require('../config/database');
+const { randomUUID } = require('crypto');
 const https = require('https');
 const http = require('http');
+const sharp = require('sharp');
 
-// Helper function to convert image URL or base64 to PNG buffer
+// Helper function to fetch image from URL
+async function fetchImageFromUrl(imageUrl) {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = new URL(imageUrl);
+      const protocol = url.protocol === 'https:' ? https : http;
+      
+      protocol.get(imageUrl, (response) => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`Failed to fetch image: ${response.statusCode}`));
+          return;
+        }
+        
+        const contentType = response.headers['content-type'] || '';
+        console.log(`📸 Fetching image from URL, content-type: ${contentType}`);
+        
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          resolve(buffer);
+        });
+        response.on('error', reject);
+      }).on('error', reject);
+    } catch (urlError) {
+      reject(new Error(`Invalid URL: ${urlError.message}`));
+    }
+  });
+}
+
+// Helper function to convert image URL or base64 to optimized PNG buffer (300 DPI, <20MB)
 async function convertImageToPNG(imageUrl) {
   try {
+    let inputBuffer;
+    
     // Check if it's a base64 data URI
     if (imageUrl.startsWith('data:image')) {
       // Extract base64 data and mime type
@@ -12,52 +46,104 @@ async function convertImageToPNG(imageUrl) {
       if (!matches) {
         // Try without explicit mime type
         const base64Data = imageUrl.split(',')[1] || imageUrl;
-        const buffer = Buffer.from(base64Data, 'base64');
-        return buffer;
+        inputBuffer = Buffer.from(base64Data, 'base64');
+      } else {
+        const base64Data = matches[2];
+        inputBuffer = Buffer.from(base64Data, 'base64');
       }
-      
-      const mimeType = matches[1];
-      const base64Data = matches[2];
-      const buffer = Buffer.from(base64Data, 'base64');
-      
-      // If it's already PNG, return as is
-      if (mimeType === 'png') {
-        return buffer;
-      }
-      
-      // For other formats, we'll return the buffer as is (could convert to PNG with sharp if needed)
-      // For now, we'll store whatever format we get
-      console.log(`📸 Image format detected: ${mimeType}, converting to buffer`);
-      return buffer;
+      console.log(`📸 Image format: base64, size: ${(inputBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    } else {
+      // If it's a URL, fetch it
+      inputBuffer = await fetchImageFromUrl(imageUrl);
+      console.log(`📸 Image fetched from URL, size: ${(inputBuffer.length / 1024 / 1024).toFixed(2)} MB`);
     }
     
-    // If it's a URL, fetch it and convert to buffer
-    return new Promise((resolve, reject) => {
-      try {
-        const url = new URL(imageUrl);
-        const protocol = url.protocol === 'https:' ? https : http;
-        
-        protocol.get(imageUrl, (response) => {
-          if (response.statusCode !== 200) {
-            reject(new Error(`Failed to fetch image: ${response.statusCode}`));
-            return;
-          }
-          
-          const contentType = response.headers['content-type'] || '';
-          console.log(`📸 Fetching image from URL, content-type: ${contentType}`);
-          
-          const chunks = [];
-          response.on('data', (chunk) => chunks.push(chunk));
-          response.on('end', () => {
-            const buffer = Buffer.concat(chunks);
-            resolve(buffer);
-          });
-          response.on('error', reject);
-        }).on('error', reject);
-      } catch (urlError) {
-        reject(new Error(`Invalid URL: ${urlError.message}`));
+    // Get image metadata
+    const metadata = await sharp(inputBuffer).metadata();
+    console.log(`📸 Original image: ${metadata.width}x${metadata.height}, format: ${metadata.format}, size: ${(inputBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    
+    // Calculate target dimensions to ensure <20MB at 300 DPI
+    // PNG at 300 DPI: roughly 4 bytes per pixel (RGBA)
+    // 20MB = 20 * 1024 * 1024 bytes = 20,971,520 bytes
+    // Max pixels = 20,971,520 / 4 = 5,242,880 pixels
+    // For a square image: sqrt(5,242,880) ≈ 2289 pixels
+    // We'll use a more conservative limit and allow some compression
+    
+    const maxPixels = 5000000; // ~5M pixels for safety margin
+    const currentPixels = metadata.width * metadata.height;
+    
+    let sharpInstance = sharp(inputBuffer);
+    
+    // Resize if image is too large
+    if (currentPixels > maxPixels) {
+      const scale = Math.sqrt(maxPixels / currentPixels);
+      const newWidth = Math.round(metadata.width * scale);
+      const newHeight = Math.round(metadata.height * scale);
+      console.log(`📸 Resizing image from ${metadata.width}x${metadata.height} to ${newWidth}x${newHeight}`);
+      sharpInstance = sharpInstance.resize(newWidth, newHeight, {
+        fit: 'inside',
+        withoutEnlargement: true
+      });
+    }
+    
+    // Process image: convert to PNG, set 300 DPI, optimize compression
+    let outputBuffer = await sharpInstance
+      .png({
+        compressionLevel: 9, // Maximum compression (0-9)
+        adaptiveFiltering: true,
+        palette: false // Use full color
+      })
+      .withMetadata({
+        density: 300 // Set DPI to 300
+      })
+      .toBuffer();
+    
+    const outputSizeMB = outputBuffer.length / 1024 / 1024;
+    console.log(`📸 Processed image size: ${outputSizeMB.toFixed(2)} MB`);
+    
+    // If still too large, apply more aggressive compression
+    if (outputSizeMB > 20) {
+      console.log(`⚠️ Image still too large (${outputSizeMB.toFixed(2)} MB), applying aggressive compression...`);
+      
+      // Reduce quality and resize further if needed
+      const targetSizeBytes = 20 * 1024 * 1024; // 20MB
+      const currentSizeBytes = outputBuffer.length;
+      const compressionRatio = targetSizeBytes / currentSizeBytes;
+      
+      // Get current dimensions
+      const processedMetadata = await sharp(outputBuffer).metadata();
+      const newWidth = Math.round(processedMetadata.width * Math.sqrt(compressionRatio * 0.9));
+      const newHeight = Math.round(processedMetadata.height * Math.sqrt(compressionRatio * 0.9));
+      
+      console.log(`📸 Further resizing to ${newWidth}x${newHeight}`);
+      
+      outputBuffer = await sharp(inputBuffer)
+        .resize(newWidth, newHeight, {
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .png({
+          compressionLevel: 9, // Maximum compression
+          adaptiveFiltering: true
+        })
+        .withMetadata({
+          density: 300
+        })
+        .toBuffer();
+      
+      const finalSizeMB = outputBuffer.length / 1024 / 1024;
+      console.log(`📸 Final processed image size: ${finalSizeMB.toFixed(2)} MB`);
+      
+      if (finalSizeMB > 20) {
+        console.warn(`⚠️ Warning: Image size (${finalSizeMB.toFixed(2)} MB) still exceeds 20MB limit`);
       }
-    });
+    }
+    
+    // Verify final image
+    const finalMetadata = await sharp(outputBuffer).metadata();
+    console.log(`✅ Final image: ${finalMetadata.width}x${finalMetadata.height}, format: PNG, DPI: 300, size: ${(outputBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    
+    return outputBuffer;
   } catch (error) {
     console.error('Error converting image to PNG:', error);
     throw error;
@@ -146,29 +232,13 @@ class OrderService {
         
         const { dressType } = extractDressTypeAndGender(clothingType);
         
-        // Convert image to PNG buffer
-        let imageBuffer;
-        try {
-          if (!item.imageUrl) {
-            throw new Error('No image URL provided');
-          }
-          
-          console.log(`📸 Converting image for item: ${item.name || item.id}`);
-          console.log(`📸 Image URL type: ${item.imageUrl.startsWith('data:') ? 'base64' : 'URL'}`);
-          
-          imageBuffer = await convertImageToPNG(item.imageUrl);
-          console.log(`✅ Converted image to PNG for item: ${item.name || item.id}, size: ${imageBuffer.length} bytes`);
-        } catch (imageError) {
-          console.error('❌ Error converting image:', imageError.message);
-          // Create a placeholder buffer if image conversion fails
-          imageBuffer = Buffer.from('placeholder');
-        }
-
-        // Insert into order_details table
+        const imageUrl = typeof item.imageUrl === 'string' ? item.imageUrl : null;
+        
+        // Insert into order_details table (store only image URL)
         await pool.query(
           `INSERT INTO order_details 
-           (order_id, dress_type, gender, size, quantity, address, ai_image, image_format, created_at) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)`,
+           (order_id, dress_type, gender, size, quantity, address, ai_image, ai_image_url, image_format, created_at) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)`,
           [
             orderId,
             dressType,
@@ -176,8 +246,9 @@ class OrderService {
             item.size || 'N/A',
             item.quantity || 1,
             formattedAddress,
-            imageBuffer,
-            'png'
+            null,
+            imageUrl,
+            'png' // Always PNG format
           ]
         );
 
@@ -295,14 +366,90 @@ class OrderService {
   static async saveOrderForLater(orderData, userId, userEmail) {
     try {
       console.log('💾 Saving order for later - User:', userId);
+      console.log('💾 Order data:', JSON.stringify(orderData, null, 2));
       
-      const result = await pool.query(
-        'INSERT INTO saved_orders (user_id, order_data) VALUES ($1, $2) RETURNING id',
-        [userId, JSON.stringify(orderData)]
-      );
-
-      console.log('✅ Saved order:', result.rows[0].id);
-      return result.rows[0].id.toString();
+      // Generate a unique reference for this saved order (grouping multiple items)
+      const saveReference = `saved_${userId}_${Date.now()}`;
+      
+      const items = orderData.items || [];
+      const shippingAddress = orderData.shippingAddress || {};
+      const paymentInfo = orderData.paymentInfo || {};
+      
+      // Format address
+      const addressParts = [
+        shippingAddress.fullName,
+        shippingAddress.address,
+        shippingAddress.city,
+        shippingAddress.state,
+        shippingAddress.zipCode,
+        shippingAddress.country
+      ].filter(Boolean);
+      const formattedAddress = addressParts.join(', ') || 'Address not provided';
+      
+      const savedDetailIds = [];
+      
+      // Process each item in the saved order
+      for (const item of items) {
+        // Extract dress type and gender from clothingType or category
+        let clothingType = item.clothingType || '';
+        
+        // If category is separate, use it for gender
+        let gender = 'unisex';
+        if (item.category) {
+          gender = item.category.toLowerCase();
+        } else {
+          // Extract from clothingType
+          const extracted = extractDressTypeAndGender(clothingType);
+          gender = extracted.gender;
+        }
+        
+        const { dressType } = extractDressTypeAndGender(clothingType);
+        
+        const imageUrl = typeof item.imageUrl === 'string' ? item.imageUrl : null;
+        
+        // Insert into saved_orders table (store only image URL)
+        const result = await pool.query(
+          `INSERT INTO saved_orders 
+           (save_reference, user_id, user_email, dress_type, gender, size, quantity, address, 
+            ai_image, ai_image_url, image_format, item_name, item_price, item_data, shipping_address, 
+            payment_info, totals, order_snapshot, notes, created_at) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, CURRENT_TIMESTAMP) 
+           RETURNING id`,
+          [
+            saveReference,
+            userId,
+            userEmail || null,
+            dressType,
+            gender,
+            item.size || 'N/A',
+            item.quantity || 1,
+            formattedAddress,
+            null,
+            imageUrl,
+            'png', // Always PNG format
+            item.name || 'Custom Design',
+            item.price || 0,
+            JSON.stringify(item), // Store full item data
+            JSON.stringify(shippingAddress), // Store shipping address
+            JSON.stringify(paymentInfo), // Store payment info
+            JSON.stringify({
+              subtotal: orderData.subtotal || 0,
+              tax: orderData.tax || 0,
+              shipping: orderData.shipping || 0,
+              total: orderData.total || 0
+            }), // Store totals
+            JSON.stringify(orderData), // Store complete order snapshot
+            orderData.notes || null
+          ]
+        );
+        
+        savedDetailIds.push(result.rows[0].id.toString());
+        console.log(`✅ Saved order detail for item: ${item.name || item.id}`);
+      }
+      
+      console.log(`✅ All saved order details saved successfully (${savedDetailIds.length} items)`);
+      // Return the save reference so items can be grouped together
+      return saveReference;
     } catch (error) {
       console.error('❌ Error saving order for later:', error.message);
       throw new Error(`Failed to save order: ${error.message}`);
@@ -312,7 +459,12 @@ class OrderService {
   static async getSavedOrderById(savedOrderId) {
     try {
       const result = await pool.query(
-        'SELECT * FROM saved_orders WHERE id = $1',
+        `SELECT 
+          id, save_reference, user_id, user_email, dress_type, gender, size, quantity, 
+          address, ai_image_url, image_format, item_name, item_price, item_data, shipping_address, 
+          payment_info, totals, order_snapshot, notes, created_at,
+          COALESCE(LENGTH(ai_image), 0) as image_size_bytes
+        FROM saved_orders WHERE id = $1`,
         [savedOrderId]
       );
 
@@ -323,8 +475,26 @@ class OrderService {
       const row = result.rows[0];
       return {
         id: row.id.toString(),
+        saveReference: row.save_reference,
         userId: row.user_id,
-        orderData: row.order_data,
+        userEmail: row.user_email,
+        dressType: row.dress_type,
+        gender: row.gender,
+        size: row.size,
+        quantity: row.quantity,
+        address: row.address,
+        imageFormat: row.image_format,
+        imageUrl: row.ai_image_url,
+        itemName: row.item_name,
+        itemPrice: row.item_price,
+        itemData: row.item_data,
+        shippingAddress: row.shipping_address,
+        paymentInfo: row.payment_info,
+        totals: row.totals,
+        orderSnapshot: row.order_snapshot,
+        notes: row.notes,
+        hasImage: !!row.ai_image_url,
+        imageSize: row.image_size_bytes,
         createdAt: row.created_at,
       };
     } catch (error) {
@@ -338,20 +508,147 @@ class OrderService {
       console.log('📥 Fetching saved orders for user:', userId);
       
       const result = await pool.query(
-        'SELECT * FROM saved_orders WHERE user_id = $1 ORDER BY created_at DESC',
+        `SELECT 
+          id, save_reference, user_id, user_email, dress_type, gender, size, quantity, 
+          address, ai_image_url, image_format, item_name, item_price, item_data, shipping_address, 
+          payment_info, totals, order_snapshot, notes, created_at,
+          COALESCE(LENGTH(ai_image), 0) as image_size_bytes
+        FROM saved_orders WHERE user_id = $1 ORDER BY created_at DESC`,
         [userId]
       );
 
       console.log(`✅ Found ${result.rows.length} saved orders`);
       return result.rows.map(row => ({
         id: row.id.toString(),
+        saveReference: row.save_reference,
         userId: row.user_id,
-        orderData: row.order_data,
+        userEmail: row.user_email,
+        dressType: row.dress_type,
+        gender: row.gender,
+        size: row.size,
+        quantity: row.quantity,
+        address: row.address,
+        imageFormat: row.image_format,
+        imageUrl: row.ai_image_url,
+        itemName: row.item_name,
+        itemPrice: row.item_price,
+        itemData: row.item_data,
+        shippingAddress: row.shipping_address,
+        paymentInfo: row.payment_info,
+        totals: row.totals,
+        orderSnapshot: row.order_snapshot,
+        notes: row.notes,
+        hasImage: !!row.ai_image_url,
+        imageSize: row.image_size_bytes,
         createdAt: row.created_at,
       }));
     } catch (error) {
       console.error('❌ Error fetching saved orders:', error.message);
       throw new Error(`Failed to fetch saved orders: ${error.message}`);
+    }
+  }
+
+  // Get saved order details grouped by save_reference
+  static async getSavedOrdersByReference(saveReference) {
+    try {
+      const result = await pool.query(
+        `SELECT 
+          id, save_reference, user_id, user_email, dress_type, gender, size, quantity, 
+          address, ai_image_url, image_format, item_name, item_price, item_data, shipping_address, 
+          payment_info, totals, order_snapshot, notes, created_at,
+          COALESCE(LENGTH(ai_image), 0) as image_size_bytes
+        FROM saved_orders WHERE save_reference = $1 ORDER BY created_at DESC`,
+        [saveReference]
+      );
+
+      return result.rows.map(row => ({
+        id: row.id.toString(),
+        saveReference: row.save_reference,
+        userId: row.user_id,
+        userEmail: row.user_email,
+        dressType: row.dress_type,
+        gender: row.gender,
+        size: row.size,
+        quantity: row.quantity,
+        address: row.address,
+        imageFormat: row.image_format,
+        imageUrl: row.ai_image_url,
+        itemName: row.item_name,
+        itemPrice: row.item_price,
+        itemData: row.item_data,
+        shippingAddress: row.shipping_address,
+        paymentInfo: row.payment_info,
+        totals: row.totals,
+        orderSnapshot: row.order_snapshot,
+        notes: row.notes,
+        hasImage: !!row.ai_image_url,
+        imageSize: row.image_size_bytes,
+        createdAt: row.created_at,
+      }));
+    } catch (error) {
+      console.error('Error fetching saved orders by reference:', error);
+      throw error;
+    }
+  }
+
+  // Get saved order image as buffer (for direct download)
+  static async getSavedOrderImageBuffer(savedOrderId) {
+    try {
+      const result = await pool.query(
+        'SELECT ai_image, ai_image_url, image_format FROM saved_orders WHERE id = $1',
+        [savedOrderId]
+      );
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      const row = result.rows[0];
+      if (row.ai_image) {
+        return {
+          buffer: row.ai_image,
+          format: 'png',
+          size: row.ai_image.length
+        };
+      }
+
+      if (row.ai_image_url) {
+        const pngBuffer = await convertImageToPNG(row.ai_image_url);
+        return {
+          buffer: pngBuffer,
+          format: 'png',
+          size: pngBuffer.length
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error fetching saved order image:', error);
+      throw error;
+    }
+  }
+
+  // Get saved order image as base64 (for API responses)
+  static async getSavedOrderImage(savedOrderId) {
+    try {
+      const imageData = await this.getSavedOrderImageBuffer(savedOrderId);
+      
+      if (!imageData) {
+        return null;
+      }
+
+      // Convert buffer to base64
+      const base64Image = imageData.buffer.toString('base64');
+      const mimeType = 'image/png'; // Always PNG
+      
+      return {
+        base64: `data:${mimeType};base64,${base64Image}`,
+        format: imageData.format,
+        size: imageData.size
+      };
+    } catch (error) {
+      console.error('Error fetching saved order image:', error);
+      throw error;
     }
   }
 
@@ -403,6 +700,7 @@ class OrderService {
           od.quantity,
           od.address,
           od.ai_image,
+          od.ai_image_url,
           od.image_format,
           od.created_at,
           o.status as order_status,
@@ -422,13 +720,13 @@ class OrderService {
         size: row.size,
         quantity: row.quantity,
         address: row.address,
+        imageUrl: row.ai_image_url,
         imageFormat: row.image_format,
         createdAt: row.created_at,
         orderStatus: row.order_status,
         totalAmount: row.total_amount,
-        // Note: ai_image is a Buffer, convert to base64 if needed
-        hasImage: row.ai_image ? true : false,
-        imageSize: row.ai_image ? row.ai_image.length : 0
+        hasImage: !!row.ai_image_url,
+        imageSize: 0
       }));
     } catch (error) {
       console.error('Error fetching order details:', error);
@@ -448,6 +746,7 @@ class OrderService {
           od.size,
           od.quantity,
           od.address,
+          od.ai_image_url,
           od.image_format,
           od.created_at,
           o.status as order_status,
@@ -468,6 +767,7 @@ class OrderService {
         size: row.size,
         quantity: row.quantity,
         address: row.address,
+        imageUrl: row.ai_image_url,
         imageFormat: row.image_format,
         createdAt: row.created_at,
         orderStatus: row.order_status,
@@ -480,11 +780,11 @@ class OrderService {
     }
   }
 
-  // Get order detail image as base64
-  static async getOrderDetailImage(detailId) {
+  // Get order detail image as buffer (for direct download)
+  static async getOrderDetailImageBuffer(detailId) {
     try {
       const result = await pool.query(
-        'SELECT ai_image, image_format FROM order_details WHERE id = $1',
+        'SELECT ai_image, ai_image_url, image_format FROM order_details WHERE id = $1',
         [detailId]
       );
 
@@ -493,17 +793,47 @@ class OrderService {
       }
 
       const row = result.rows[0];
-      if (!row.ai_image) {
+      if (row.ai_image) {
+        return {
+          buffer: row.ai_image,
+          format: 'png',
+          size: row.ai_image.length
+        };
+      }
+
+      if (row.ai_image_url) {
+        const pngBuffer = await convertImageToPNG(row.ai_image_url);
+        return {
+          buffer: pngBuffer,
+          format: 'png',
+          size: pngBuffer.length
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error fetching order detail image:', error);
+      throw error;
+    }
+  }
+
+  // Get order detail image as base64 (for API responses)
+  static async getOrderDetailImage(detailId) {
+    try {
+      const imageData = await this.getOrderDetailImageBuffer(detailId);
+      
+      if (!imageData) {
         return null;
       }
 
       // Convert buffer to base64
-      const base64Image = row.ai_image.toString('base64');
-      const mimeType = row.image_format === 'png' ? 'image/png' : 'image/jpeg';
+      const base64Image = imageData.buffer.toString('base64');
+      const mimeType = 'image/png'; // Always PNG
       
       return {
         base64: `data:${mimeType};base64,${base64Image}`,
-        format: row.image_format
+        format: imageData.format,
+        size: imageData.size
       };
     } catch (error) {
       console.error('Error fetching order detail image:', error);
