@@ -51,18 +51,20 @@ const generateDesignImageFlow = ai.defineFlow(
       : '';
 
     const fullPrompt = `
-      Create a photorealistic studio mockup of a premium ${input.clothingColor} ${clothingTypeName}.
+      Create one (1) photorealistic studio mockup of a premium ${input.clothingColor} ${clothingTypeName}.
       ${sleeveDescription}
       ${designPrompt}
       ${logoPrompt}
 
       CRITICAL REQUIREMENTS (FOLLOW EXACTLY):
-      - The design from "${input.prompt}" must be printed directly onto the ${clothingTypeName} fabric, perfectly following folds and seams.
-      - Absolutely NO extra graphics, props, models, or scenery. The ${clothingTypeName} must be the only subject.
-      - Background must be perfectly plain (solid light gray or white) with zero textures, gradients, or elements.
-      - The design must appear embedded in the fabric (screen-printed look), never floating, sticker-like, or detached.
-      - Lighting should be modern studio lighting with soft shadows; no reflections or gloss that obscure the print.
-      - Frame the garment front-on, cropped mid torso, with no face or body visible.
+      - Generate ONLY ONE single ${clothingTypeName}. No grids, no duplicates, no variations, no multiple angles.
+      - The design from "${input.prompt}" must be printed directly onto the fabric, perfectly following folds and seams.
+      - Absolutely NO extra graphics, props, models, bodies, or scenery. Only one isolated ${clothingTypeName}.
+      - Background must be a perfectly plain solid light gray or white. No gradients, textures, patterns, shadows, or elements.
+      - The design must appear embedded into the fabric (screen-printed), never floating, sticker-like, or detached.
+      - Lighting should be clean studio lighting with soft shadows; no reflections or highlights that obscure the print.
+      - Show ONLY the front of the garment, centered in frame, cropped mid-torso, with no face or body visible.
+      - Do NOT show multiple perspectives, zooms, or mockups—ONLY ONE front-facing product image.
     `;
 
     // 🔥 Call Cloudflare Worker
