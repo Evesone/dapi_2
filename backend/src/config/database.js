@@ -83,7 +83,8 @@ const createTables = async () => {
         size VARCHAR(50) NOT NULL,
         quantity INTEGER NOT NULL,
         address TEXT NOT NULL,
-        ai_image BYTEA NOT NULL,
+        ai_image BYTEA,
+        ai_image_url TEXT,
         image_format VARCHAR(10) DEFAULT 'png',
         item_name VARCHAR(255),
         item_price DECIMAL(10,2),
@@ -138,11 +139,17 @@ const createTables = async () => {
         size VARCHAR(50) NOT NULL,
         quantity INTEGER NOT NULL,
         address TEXT NOT NULL,
-        ai_image BYTEA NOT NULL,
+        ai_image BYTEA,
+        ai_image_url TEXT,
         image_format VARCHAR(10) DEFAULT 'png',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    await pool.query(`ALTER TABLE order_details ADD COLUMN IF NOT EXISTS ai_image_url TEXT`);
+    await pool.query(`ALTER TABLE saved_orders ADD COLUMN IF NOT EXISTS ai_image_url TEXT`);
+    await pool.query(`ALTER TABLE order_details ALTER COLUMN ai_image DROP NOT NULL`);
+    await pool.query(`ALTER TABLE saved_orders ALTER COLUMN ai_image DROP NOT NULL`);
 
     console.log('✅ Order details table ready');
     console.log('✅ Database tables created successfully');
